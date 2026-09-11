@@ -2,9 +2,9 @@ import pandas as pd
 
 df = pd.read_csv("submissions.csv")
 
-print("Liczba zgłoszeń:", len(df))
-print("Kolumny:", df.columns.tolist())
-print("Braki:\n", df.isna().sum())
+print("Total listed:", len(df))
+print("Kolumns:", df.columns.tolist())
+print("Empty fields:\n", df.isna().sum())
 
 df["spam_score"] = 0
 
