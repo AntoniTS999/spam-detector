@@ -1,5 +1,7 @@
 import pandas as pd
 
+import matplotlib.pyplot as plt
+
 df = pd.read_csv("submissions.csv")
 
 print("Total listed:", len(df))
@@ -80,3 +82,55 @@ print("suspicious_submissions.csv")
 print("block_ips.txt")
 print("block_email_domains.txt")
 
+# Wykresy
+
+fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+fig.suptitle("Analiza zgłoszeń formularza – spam vs. poprawne", fontsize=16)
+
+# 1. Udział spamu
+counts = df["is_spam"].value_counts().reindex([False, True], fill_value=0)
+axes[0, 0].pie(counts, labels=["Poprawne", "Spam"], autopct="%1.1f%%",
+               colors=["#4caf50", "#e53935"], startangle=90)
+axes[0, 0].set_title("Udział spamu")
+
+# 2. Rozkład spam_score
+score_counts = df["spam_score"].value_counts().sort_index()
+bar_colors = ["#e53935" if s >= 10 else "#4caf50" for s in score_counts.index]
+axes[0, 1].bar(score_counts.index.astype(str), score_counts.values, color=bar_colors)
+axes[0, 1].set_title("Rozkład spam_score (czerwone = spam)")
+axes[0, 1].set_xlabel("spam_score")
+axes[0, 1].set_ylabel("Liczba zgłoszeń")
+
+# 3. Czas wypełnienia formularza: poprawne vs spam
+cap = 60
+for label, mask, color in [("Poprawne", ~df["is_spam"], "#4caf50"),
+                           ("Spam", df["is_spam"], "#e53935")]:
+    axes[0, 2].hist(df.loc[mask, "form_fill_time_sec"].clip(upper=cap), bins=30,
+                    alpha=0.6, label=label, color=color)
+axes[0, 2].set_title(f"Czas wypełnienia formularza (obcięte do {cap} s)")
+axes[0, 2].set_xlabel("Sekundy")
+axes[0, 2].legend()
+
+# 4. Top 10 IP ze spamem
+top_ips = spam["ip"].value_counts().head(10).sort_values()
+axes[1, 0].barh(top_ips.index.astype(str), top_ips.values, color="#e53935")
+axes[1, 0].set_title("Top 10 adresów IP (spam)")
+
+# 5. Top 10 domen e-mail ze spamem
+spam_domains = (spam["email"].str.lower().str.split("@").str[-1]
+                .value_counts().head(10).sort_values())
+axes[1, 1].barh(spam_domains.index.astype(str), spam_domains.values, color="#fb8c00")
+axes[1, 1].set_title("Top 10 domen e-mail (spam)")
+
+# 6. IP: wszystkie zgłoszenia vs zgłoszenia spamowe
+axes[1, 2].scatter(ip_stats["total"], ip_stats["spam"], alpha=0.5, color="#8e24aa")
+mx = max(ip_stats["total"].max(), 1)
+axes[1, 2].plot([0, mx], [0, mx], ls="--", color="gray", label="IP wyłącznie spamowe")
+axes[1, 2].set_xlabel("Wszystkie zgłoszenia z IP")
+axes[1, 2].set_ylabel("Zgłoszenia spamowe z IP")
+axes[1, 2].set_title("IP: czysto spamowe vs. mieszane")
+axes[1, 2].legend(fontsize=8)
+
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.savefig("spam_wykresy.png", dpi=150)
+plt.show()
